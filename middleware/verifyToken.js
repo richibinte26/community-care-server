@@ -1,7 +1,9 @@
 import "dotenv/config";
 import { createRemoteJWKSet, jwtVerify } from "jose";
 
-const JWKS = createRemoteJWKSet(new URL(process.env.JWKS_URL));
+const JWKS = createRemoteJWKSet(
+  new URL(`${process.env.CLIENT_URL}/api/auth/jwks`)
+);
 
 export async function verifyToken(req, res, next) {
   const token = req.headers.authorization?.split(" ")[1];
@@ -10,7 +12,7 @@ export async function verifyToken(req, res, next) {
   }
   try {
     const { payload } = await jwtVerify(token, JWKS, {
-      issuer: process.env.AUTH_ISSUER,
+      issuer: process.env.CLIENT_URL,
     });
     req.user = payload; // email and name come from the token
     next();
