@@ -77,4 +77,64 @@ export default function eventRoutes(app) {
 
     res.status(201).send({ insertedId: result.insertedId });
   });
+
+
+    // Private: update own event
+  app.patch("/events/:id", verifyToken, async (req, res) => {
+    if (!ObjectId.isValid(req.params.id)) {
+      return res.status(400).send({ message: "That event link looks wrong." });
+    }
+
+    const { title, description, eventType, thumbnail, location, eventDate } =
+      req.body;
+
+    if (!title || !description || !eventType || !thumbnail || !location || !eventDate) {
+      return res.status(400).send({ message: "Please fill in every field." });
+    }
+
+    const date = new Date(eventDate);
+    if (isNaN(date) || date < startOfToday()) {
+      return res.status(400).send({ message: "Event date must be in the future." });
+    }
+
+    const events = getCollection("events");
+    const result = await events.updateOne(
+      { _id: new ObjectId(req.params.id), creatorEmail: req.user.email },
+      {
+        $set: {
+          title: title.trim(),
+          description: description.trim(),
+          eventType,
+          thumbnail: thumbnail.trim(),
+          location: location.trim(),
+          eventDate: date,
+        },
+      }
+    );
+
+    if (!result.matchedCount) {
+      return res.status(403).send({ message: "You can only edit your own events." });
+    }
+    res.send({ message: "Event updated successfully." });
+  });
+
+  // Private: delete own event (and the joins that belong to it)
+  app.delete("/events/:id", verifyToken, async (req, res) => {
+    if (!ObjectId.isValid(req.params.id)) {
+      return res.status(400).send({ message: "That event link looks wrong." });
+    }
+
+    const events = getCollection("events");
+    const result = await events.deleteOne({
+      _id: new ObjectId(req.params.id),
+      creatorEmail: req.user.email,
+    });
+
+    if (!result.deletedCount) {
+      return res.status(403).send({ message: "You can only delete your own events." });
+    }
+
+    await getCollection("joins").deleteMany({ eventId: req.params.id });
+    res.send({ message: "Event deleted successfully." });
+  });
 }
