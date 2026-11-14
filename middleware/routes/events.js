@@ -47,4 +47,34 @@ export default function eventRoutes(app) {
       .toArray();
     res.send(data);
   });
+
+    // Private: create an event (date must be in the future)
+  app.post("/events", verifyToken, async (req, res) => {
+    const { title, description, eventType, thumbnail, location, eventDate } =
+      req.body;
+
+    if (!title || !description || !eventType || !thumbnail || !location || !eventDate) {
+      return res.status(400).send({ message: "Please fill in every field." });
+    }
+
+    const date = new Date(eventDate);
+    if (isNaN(date) || date < startOfToday()) {
+      return res.status(400).send({ message: "Event date must be in the future." });
+    }
+
+    const events = getCollection("events");
+    const result = await events.insertOne({
+      title: title.trim(),
+      description: description.trim(),
+      eventType,
+      thumbnail: thumbnail.trim(),
+      location: location.trim(),
+      eventDate: date,
+      creatorEmail: req.user.email,
+      creatorName: req.user.name,
+      createdAt: new Date(),
+    });
+
+    res.status(201).send({ insertedId: result.insertedId });
+  });
 }
